@@ -139,14 +139,17 @@ func (p *Parameter) BindValue(h api.SQLHSTMT, idx int, v driver.Value, conn *Con
 		}
 		size = 20 + api.SQLULEN(decimal)
 	case []byte:
+		ctype = api.SQL_C_BINARY
+
 		if json.Valid(d) { // Check if it's valid JSON (text-based)
-			ctype = api.SQL_C_WCHAR  // Treat as a string
+			ctype = api.SQL_C_WCHAR // Treat as a string
 			sqltype = api.SQL_VARCHAR
 		} else {
-			ctype = api.SQL_C_BINARY  // Treat as binary
+			ctype = api.SQL_C_BINARY // Treat as binary
 			sqltype = api.SQL_LONGVARBINARY
 		}
-
+		fmt.Printf("Before Assigned SQL Type: %s (%d)\n", sqlTypeToString(sqltype), sqltype)
+		fmt.Printf("Before Assigned SQL Type: %s (%d)\n", sqlTypeToString(ctype), ctype)
 		b := make([]byte, len(d))
 		copy(b, d)
 		p.Data = b
@@ -158,16 +161,20 @@ func (p *Parameter) BindValue(h api.SQLHSTMT, idx int, v driver.Value, conn *Con
 		buflen = api.SQLLEN(len(b))
 		plen = p.StoreStrLen_or_IndPtr(buflen)
 		size = api.SQLULEN(len(b))
-		switch {
-		case p.isDescribed:
-			sqltype = p.SQLType
-		case size <= 0:
-			sqltype = api.SQL_LONGVARBINARY
-		case size >= 8000:
-			sqltype = api.SQL_LONGVARBINARY
-		default:
-			sqltype = api.SQL_BINARY
-		}
+		/**
+		  switch {
+		  case p.isDescribed:
+		          sqltype = p.SQLType
+		  case size <= 0:
+		          sqltype = api.SQL_LONGVARBINARY
+		  case size >= 8000:
+		          sqltype = api.SQL_LONGVARBINARY
+		  default:
+		          sqltype = api.SQL_BINARY
+		  }
+		  **/
+		fmt.Printf("Assigned SQL Type: %s (%d)\n", sqlTypeToString(sqltype), sqltype)
+		fmt.Printf("Assigned SQL Type: %s (%d)\n", sqlTypeToString(ctype), ctype)
 	default:
 		return fmt.Errorf("unsupported type %T", v)
 	}
@@ -218,4 +225,55 @@ func ExtractParameters(h api.SQLHSTMT) ([]Parameter, error) {
 		}
 	}
 	return ps, nil
+}
+
+func sqlTypeToString(sqltype api.SQLSMALLINT) string {
+	switch sqltype {
+	case api.SQL_CHAR:
+		return "SQL_CHAR"
+	case api.SQL_VARCHAR:
+		return "SQL_VARCHAR"
+	case api.SQL_LONGVARCHAR:
+		return "SQL_LONGVARCHAR"
+	case api.SQL_WCHAR:
+		return "SQL_WCHAR"
+	case api.SQL_WVARCHAR:
+		return "SQL_WVARCHAR"
+	case api.SQL_WLONGVARCHAR:
+		return "SQL_WLONGVARCHAR"
+	case api.SQL_DECIMAL:
+		return "SQL_DECIMAL"
+	case api.SQL_NUMERIC:
+		return "SQL_NUMERIC"
+	case api.SQL_SMALLINT:
+		return "SQL_SMALLINT"
+	case api.SQL_INTEGER:
+		return "SQL_INTEGER"
+	case api.SQL_REAL:
+		return "SQL_REAL"
+	case api.SQL_FLOAT:
+		return "SQL_FLOAT"
+	case api.SQL_DOUBLE:
+		return "SQL_DOUBLE"
+	case api.SQL_BIT:
+		return "SQL_BIT"
+	case api.SQL_TINYINT:
+		return "SQL_TINYINT"
+	case api.SQL_BIGINT:
+		return "SQL_BIGINT"
+	case api.SQL_BINARY:
+		return "SQL_BINARY"
+	case api.SQL_VARBINARY:
+		return "SQL_VARBINARY"
+	case api.SQL_LONGVARBINARY:
+		return "SQL_LONGVARBINARY"
+	case api.SQL_TYPE_DATE:
+		return "SQL_TYPE_DATE"
+	case api.SQL_TYPE_TIME:
+		return "SQL_TYPE_TIME"
+	case api.SQL_TYPE_TIMESTAMP:
+		return "SQL_TYPE_TIMESTAMP"
+	default:
+		return fmt.Sprintf("UNKNOWN_SQL_TYPE (%d)", sqltype)
+	}
 }
