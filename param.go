@@ -6,6 +6,7 @@ package odbc
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"time"
 	"unsafe"
@@ -138,7 +139,14 @@ func (p *Parameter) BindValue(h api.SQLHSTMT, idx int, v driver.Value, conn *Con
 		}
 		size = 20 + api.SQLULEN(decimal)
 	case []byte:
-		ctype = api.SQL_C_BINARY
+		if json.Valid(d) { // Check if it's valid JSON (text-based)
+			ctype = api.SQL_C_WCHAR  // Treat as a string
+			sqltype = api.SQL_VARCHAR
+		} else {
+			ctype = api.SQL_C_BINARY  // Treat as binary
+			sqltype = api.SQL_LONGVARBINARY
+		}
+
 		b := make([]byte, len(d))
 		copy(b, d)
 		p.Data = b
