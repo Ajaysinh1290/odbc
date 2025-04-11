@@ -65,16 +65,19 @@ func (p *Parameter) BindValue(h api.SQLHSTMT, idx int, v driver.Value, conn *Con
 		buflen = api.SQLLEN(l)
 		plen = p.StoreStrLen_or_IndPtr(buflen)
 		if !conn.isMSAccessDriver {
-			switch {
-			case size >= 4000:
-				sqltype = api.SQL_WLONGVARCHAR
-			case p.isDescribed:
+			if p.isDescribed {
 				sqltype = p.SQLType
-			case size <= 1:
-				sqltype = api.SQL_WVARCHAR
-			default:
-				sqltype = api.SQL_WCHAR
-			}
+				if sqltype == api.SQL_DECIMAL {
+					decimal = p.Decimal
+					size = p.Size
+				}
+			} else {
+				if size >= 4000 {
+					sqltype = api.SQL_LONGVARCHAR
+				} else {
+					sqltype = api.SQL_VARCHAR
+				}
+			}			
 		} else {
 			// MS Acess requires SQL_WLONGVARCHAR for MEMO.
 			// https://docs.microsoft.com/en-us/sql/odbc/microsoft/microsoft-access-data-types
