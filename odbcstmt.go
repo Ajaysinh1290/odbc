@@ -28,11 +28,16 @@ type ODBCStmt struct {
 }
 
 func (c *Conn) PrepareODBCStmt(query string) (*ODBCStmt, error) {
+	if query == "" {
+		return nil, fmt.Errorf("PrepareODBCStmt: empty query")
+	}
+
 	var out api.SQLHANDLE
 	ret := api.SQLAllocHandle(api.SQL_HANDLE_STMT, api.SQLHANDLE(c.h), &out)
 	if IsError(ret) {
 		return nil, c.newError("SQLAllocHandle", c.h)
 	}
+
 	h := api.SQLHSTMT(out)
 	err := drv.Stats.updateHandleCount(api.SQL_HANDLE_STMT, 1)
 	if err != nil {
@@ -40,22 +45,33 @@ func (c *Conn) PrepareODBCStmt(query string) (*ODBCStmt, error) {
 	}
 
 	b := api.StringToUTF16(query)
+	if len(b) == 0 {
+		defer releaseHandle(h)
+		return nil, fmt.Errorf("PrepareODBCStmt: UTF16 conversion failed")
+	}
+
+	// Debug logging
+	fmt.Printf("Preparing SQL (%d chars): %s\n", len(query), query)
+
 	ret = api.SQLPrepare(h, (*api.SQLWCHAR)(unsafe.Pointer(&b[0])), api.SQL_NTS)
 	if IsError(ret) {
 		defer releaseHandle(h)
 		return nil, c.newError("SQLPrepare", h)
 	}
+
 	ps, err := ExtractParameters(h)
 	if err != nil {
 		defer releaseHandle(h)
 		return nil, err
 	}
+
 	return &ODBCStmt{
 		h:          h,
 		Parameters: ps,
 		usedByStmt: true,
 	}, nil
 }
+
 
 func (s *ODBCStmt) closeByStmt() error {
 	s.mu.Lock()
